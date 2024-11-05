@@ -1,10 +1,10 @@
 import asyncio
-from libsql_client import Client
+from libsql_client import create_client
 import os
 import logging
 
 async def init_db():
-    client = Client(
+    client = create_client(
         url=os.environ["TURSO_DATABASE_URL"],
         auth_token=os.environ["TURSO_AUTH_TOKEN"]
     )
