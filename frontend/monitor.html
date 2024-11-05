@@ -1,0 +1,44 @@
+<content><!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Database Monitor</title>
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-2xl font-bold mb-4">Latest Database Entries</h1>
+        <div id="items" class="space-y-4"></div>
+    </div>
+
+    <script>
+        async function fetchLatestItems() {
+            try {
+                const response = await fetch('/.netlify/functions/monitor', {
+                    headers: {
+                        'X-API-Key': import.meta.env.VITE_OFFERS_API_KEY
+                    }
+                });
+                const data = await response.json();
+                
+                const itemsDiv = document.getElementById('items');
+                itemsDiv.innerHTML = data.items.map(item => `
+                    <div class="bg-white p-4 rounded-lg shadow">
+                        <h2 class="font-semibold">${item.title}</h2>
+                        <p class="text-sm text-gray-600">Type: ${item.feed_type}</p>
+                        <p class="text-sm text-gray-600">Hash: ${item.item_hash}</p>
+                        <p class="text-sm text-gray-600">Added: ${new Date(item.created_at).toLocaleString()}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        // Fetch initially and then every 30 seconds
+        fetchLatestItems();
+        setInterval(fetchLatestItems, 30000);
+    </script>
+</body>
+</html></content>

@@ -1,0 +1,56 @@
+name: Generate RSS Feeds
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # Run every 4 hours
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: write  # Required for pushing to the repository
+
+jobs:
+  generate-feeds:
+    runs-on: ubuntu-latest
+    
+    env:
+      TURSO_DATABASE_URL: libsql://main-goodoffers-db-offren.turso.io
+      TURSO_AUTH_TOKEN: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3MzAxNzAzNTgsImlkIjoiYjVhNGY5ZDUtNzlhNi00OTk1LWJhYzItZTVmYzQ3ZTZhOWM0In0.hkE1wPt4NnTJUbodfdNjD9rvrAB6EnvNAHVHIv3TKJyjl8SdY_VH--L1dYakQ2xbI1korLiFAhQiVji37teDCA
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install libsql-client
+      
+      - name: Create feeds directory
+        run: mkdir -p public/feeds
+      
+      - name: Initialize database
+        run: python db_init.py
+      
+      - name: Generate feeds
+        run: python main.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+      
+      - name: Commit and push changes
+        run: |
+          git add public/feeds/*.xml
+          git commit -m "Update feeds $(date -u)" || exit 0
+          git push
