@@ -1,5 +1,5 @@
-<content>import asyncio
-from libsql_client import create_client_async
+import asyncio
+from libsql_client import create_client
 import os
 import logging
 from datetime import datetime
@@ -7,7 +7,7 @@ from typing import Dict, List, Optional
 
 class DBManager:
     def __init__(self):
-        self.client = create_client_async(
+        self.client = create_client(
             url=os.environ["TURSO_DATABASE_URL"],
             auth_token=os.environ["TURSO_AUTH_TOKEN"]
         )
@@ -71,4 +71,4 @@ class DBManager:
             return None
         except Exception as e:
             logging.error(f"Error getting item by hash: {e}")
-            return None</content>
+            return None
