@@ -10,7 +10,7 @@ async def init_db():
     )
 
     try:
-        # Create feeds table
+        # Create feeds table with automatic cleanup
         await client.execute("""
             CREATE TABLE IF NOT EXISTS feeds (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -24,6 +24,12 @@ async def init_db():
                 source_url TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+
+        # Create index on created_at for efficient cleanup
+        await client.execute("""
+            CREATE INDEX IF NOT EXISTS idx_feeds_created_at 
+            ON feeds(created_at)
         """)
 
         logging.info("Database initialized successfully")

@@ -2,7 +2,7 @@ import asyncio
 from libsql_client import create_client
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 
 class DBManager:
@@ -16,8 +16,21 @@ class DBManager:
     async def close(self):
         await self.client.close()
 
+    async def cleanup_old_entries(self) -> None:
+        """Delete entries older than 7 days."""
+        try:
+            seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
+            query = "DELETE FROM feeds WHERE created_at < ?"
+            await self.client.execute(query, [seven_days_ago])
+            logging.info("Cleaned up entries older than 7 days")
+        except Exception as e:
+            logging.error(f"Error cleaning up old entries: {e}")
+
     async def add_feed_item(self, item: Dict) -> bool:
         try:
+            # Run cleanup before adding new items
+            await self.cleanup_old_entries()
+            
             query = """
                 INSERT INTO feeds (
                     feed_type, title, link, description, 
