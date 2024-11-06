@@ -6,12 +6,11 @@ from datetime import datetime
 import pytz
 from rfeed import Item, Feed, Enclosure
 import logging
-from utils import get_headers
-from email.utils import parsedate_to_datetime
 import urllib.parse
 import hashlib
-import uuid
+from email.utils import parsedate_to_datetime
 from db_manager import DBManager
+from utils import make_request, get_headers
 
 def generate_item_hash(title: str, link: str) -> str:
     """Generate a unique hash for each feed item based on title and link."""
@@ -41,15 +40,17 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
         feed = feedparser.parse(feed_config['rss_url'])
         results = []
         
-        for entry in feed.entries[:feed_config['max_entries']]:
-            try:
-                # Add source URL to track origin
-                source_url = feed_config['link']
-                
-                if 'xpath' in feed_config:
-                    response = requests.get(entry.link, headers=get_headers(), timeout=10)
-                    if response.status_code == 200:
-                        tree = html.fromstring(response.content)
+        with requests.Session() as session:
+            for entry in feed.entries[:feed_config['max_entries']]:
+                try:
+                    source_url = feed_config['link']
+                    
+                    if 'xpath' in feed_config:
+                        content = make_request(entry.link, session)
+                        if not content:
+                            continue
+                            
+                        tree = html.fromstring(content)
                         urls = tree.xpath(feed_config['xpath'])
                         
                         if urls:
@@ -63,7 +64,7 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                                     image_url = get_absolute_url(image_elements[0], entry.link)
                             
                             # Convert the published date to a datetime object
-                            if 'published' in entry:
+                            if hasattr(entry, 'published'):
                                 pub_date = parsedate_to_datetime(entry.published)
                             else:
                                 pub_date = datetime.now(pytz.UTC)
@@ -77,7 +78,7 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                             result = {
                                 'title': entry.title,
                                 'link': url,
-                                'description': entry.get('description', ''),
+                                'description': entry.get('description', '')[:500] + '...',
                                 'pub_date': pub_date,
                                 'source_url': source_url,
                                 'item_hash': item_hash,
@@ -91,9 +92,10 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                             await db_manager.add_feed_item(result)
                             results.append(result)
                             
-            except Exception as e:
-                logging.error(f"Error processing entry {entry.link}: {str(e)}")
-                
+                except Exception as e:
+                    logging.error(f"Error processing entry {entry.link}: {str(e)}")
+                    continue
+                    
         return results
     except Exception as e:
         logging.error(f"Error processing feed {feed_config['rss_url']}: {str(e)}")
