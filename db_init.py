@@ -10,7 +10,7 @@ async def init_db():
     )
 
     try:
-        # Create feeds table with automatic cleanup
+        # Create feeds table with automatic cleanup and new columns
         await client.execute("""
             CREATE TABLE IF NOT EXISTS feeds (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,6 +22,8 @@ async def init_db():
                 item_hash TEXT NOT NULL UNIQUE,
                 image_url TEXT,
                 source_url TEXT,
+                prompt TEXT,
+                adcopy TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
