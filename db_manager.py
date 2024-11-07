@@ -4,7 +4,6 @@ import os
 import logging
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from api_client import AdCopyGenerator
 
 class DBManager:
     def __init__(self):
@@ -12,7 +11,6 @@ class DBManager:
             url=os.environ["TURSO_DATABASE_URL"],
             auth_token=os.environ["TURSO_AUTH_TOKEN"]
         )
-        self.ad_copy_generator = AdCopyGenerator()
         logging.basicConfig(level=logging.INFO)
 
     async def close(self):
@@ -28,32 +26,28 @@ class DBManager:
         except Exception as e:
             logging.error(f"Error cleaning up old entries: {e}")
 
-    def generate_prompt(self, feed_type: str, title: str) -> str:
-        """Generate prompt for AI to create ad copy."""
-        return f"Generate a two sentence Adcopy for a {feed_type} called {title}. Mention how the {feed_type} is being given away for free."
+    def generate_ad_copy(self, feed_type: str, title: str) -> str:
+        """Generate ad copy using template."""
+        return f"🔥 FREE {feed_type} ALERT! 🔥 Get instant access to our premium {title} without spending a single penny - available completely FREE for a limited time only! Don't miss this incredible opportunity to unlock your {feed_type} at zero cost - claim your copy of {title} right now while it's still FREE!"
 
     async def add_feed_item(self, item: Dict) -> bool:
         try:
             # Run cleanup before adding new items
             await self.cleanup_old_entries()
             
-            # Generate prompt for the item
-            prompt = self.generate_prompt(item.get('feed_type', 'unknown'), item['title'])
-            
-            # Generate ad copy
-            ad_copy = await self.ad_copy_generator.generate_ad_copy(prompt)
+            # Generate ad copy from template
+            ad_copy = self.generate_ad_copy(item.get('feed_type', 'content'), item['title'])
             
             query = """
                 INSERT INTO feeds (
                     feed_type, title, link, description, 
                     pub_date, item_hash, image_url, source_url,
-                    prompt, adcopy
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    adcopy
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(item_hash) DO UPDATE SET
                     title=excluded.title,
                     description=excluded.description,
                     image_url=excluded.image_url,
-                    prompt=excluded.prompt,
                     adcopy=excluded.adcopy
             """
             
@@ -66,7 +60,6 @@ class DBManager:
                 item['item_hash'],
                 item.get('image_url'),
                 item.get('source_url'),
-                prompt,
                 ad_copy
             ])
             
@@ -102,16 +95,3 @@ class DBManager:
         except Exception as e:
             logging.error(f"Error getting item by hash: {e}")
             return None
-
-    async def update_adcopy(self, item_hash: str, adcopy: str) -> bool:
-        """Update the adcopy for a specific item."""
-        try:
-            await self.client.execute(
-                "UPDATE feeds SET adcopy = ? WHERE item_hash = ?",
-                [adcopy, item_hash]
-            )
-            logging.info(f"Updated adcopy for item {item_hash}")
-            return True
-        except Exception as e:
-            logging.error(f"Error updating adcopy: {e}")
-            return False

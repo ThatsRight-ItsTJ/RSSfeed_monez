@@ -22,7 +22,6 @@ async def init_db():
                 item_hash TEXT NOT NULL UNIQUE,
                 image_url TEXT,
                 source_url TEXT,
-                prompt TEXT,
                 adcopy TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
