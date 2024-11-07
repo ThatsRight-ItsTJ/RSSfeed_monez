@@ -22,7 +22,8 @@ def determine_item_class(result: Dict) -> str:
     if 'itch.io' in source_url:
         return 'itchio_game'
     elif 'gamerpower.com' in source_url:
-        if 'loot' in source_url.lower():
+        # Check if this is from the loot feed config
+        if 'loot' in result.get('feed_config', {}).get('rss_url', '').lower():
             return 'DLC'
         return 'Videogame'
     elif 'classcentral.com' in source_url:
@@ -69,6 +70,7 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                     'description': entry.get('description', '')[:500] + '...',
                     'pub_date': datetime.now(pytz.UTC),
                     'source_url': source_url,
+                    'feed_config': feed_config  # Add feed config for type determination
                 }
 
                 # For feeds that need XPath processing
