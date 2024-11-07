@@ -6,6 +6,7 @@ from datetime import datetime
 import pytz
 import requests
 from lxml import html
+import feedparser
 from utils import get_headers
 
 def fetch_url_with_retry(url: str) -> requests.Response:

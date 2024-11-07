@@ -18,7 +18,6 @@ def generate_item_hash(title: str, link: str) -> str:
 def determine_item_class(result: Dict) -> str:
     """Determine the class of the feed item based on its source."""
     source_url = result.get('source_url', '').lower()
-    link = result.get('link', '').lower()
     
     if 'itch.io' in source_url:
         return 'itchio_game'
@@ -33,7 +32,7 @@ def determine_item_class(result: Dict) -> str:
     
     return 'unknown'
 
-def clean_image_url(url: str) -> str:
+def clean_image_url(url: str) -> Optional[str]:
     """Clean and validate image URL."""
     if not url:
         return None
@@ -62,48 +61,50 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
         for entry in feed.entries[:feed_config['max_entries']]:
             try:
                 source_url = feed_config['link']
+                result = None  # Initialize result as None
                 
+                # Create base result dictionary with common fields
+                base_result = {
+                    'title': entry.title,
+                    'description': entry.get('description', '')[:500] + '...',
+                    'pub_date': datetime.now(pytz.UTC),
+                    'source_url': source_url,
+                }
+
                 # For feeds that need XPath processing
                 if 'xpath' in feed_config:
                     with requests.Session() as session:
                         content = make_request(entry.link, session)
-                        if not content:
-                            continue
+                        if content:  # Only process if we got content
+                            tree = html.fromstring(content)
+                            urls = tree.xpath(feed_config['xpath'])
                             
-                        tree = html.fromstring(content)
-                        urls = tree.xpath(feed_config['xpath'])
-                        
-                        if urls:
-                            url = urls[0]
-                            
-                            # Extract image URL using image_xpath
-                            image_url = None
-                            if 'image_xpath' in feed_config:
-                                image_elements = tree.xpath(feed_config['image_xpath'])
-                                if image_elements:
-                                    raw_image_url = image_elements[0]
-                                    image_url = clean_image_url(raw_image_url)
-                            
-                            # Create result dictionary
-                            result = {
-                                'title': entry.title,
-                                'link': url,
-                                'description': entry.get('description', '')[:500] + '...',
-                                'pub_date': datetime.now(pytz.UTC),
-                                'source_url': source_url,
-                                'item_hash': generate_item_hash(entry.title, url)
-                            }
-                            
-                            if image_url:
-                                result['image_url'] = image_url
+                            if urls:
+                                url = urls[0]
+                                if not url.startswith(('http://', 'https://')):
+                                    url = urllib.parse.urljoin(source_url, url)
+                                
+                                # Extract image URL using image_xpath
+                                image_url = None
+                                if 'image_xpath' in feed_config:
+                                    image_elements = tree.xpath(feed_config['image_xpath'])
+                                    if image_elements:
+                                        raw_image_url = image_elements[0]
+                                        image_url = clean_image_url(raw_image_url)
+                                
+                                result = {
+                                    **base_result,
+                                    'link': url,
+                                    'item_hash': generate_item_hash(entry.title, url)
+                                }
+                                
+                                if image_url:
+                                    result['image_url'] = image_url
                 else:
                     # Direct RSS feed processing (e.g., for Itch.io)
                     result = {
-                        'title': entry.title,
+                        **base_result,
                         'link': entry.link,
-                        'description': entry.get('description', '')[:500] + '...',
-                        'pub_date': datetime.now(pytz.UTC),
-                        'source_url': source_url,
                         'item_hash': generate_item_hash(entry.title, entry.link)
                     }
                     
@@ -114,12 +115,14 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                                 result['image_url'] = enclosure.href
                                 break
                 
-                # Determine feed type
-                result['feed_type'] = determine_item_class(result)
-                
-                # Store in database
-                await db_manager.add_feed_item(result)
-                results.append(result)
+                # Only process if we have a valid result
+                if result:
+                    # Determine feed type
+                    result['feed_type'] = determine_item_class(result)
+                    
+                    # Store in database
+                    await db_manager.add_feed_item(result)
+                    results.append(result)
                 
             except Exception as e:
                 logging.error(f"Error processing entry {entry.link}: {str(e)}")
