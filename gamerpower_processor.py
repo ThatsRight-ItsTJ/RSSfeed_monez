@@ -7,13 +7,8 @@ from typing import List, Dict, Any
 import urllib.parse
 from datetime import datetime
 import pytz
-from rfeed import Item, Feed, Enclosure
 from utils import get_headers
-from email.utils import parsedate_to_datetime
-from feed_processor import parse_existing_xml
 from config import (
-    GAMERPOWER_GAMES_CONFIG,
-    GAMERPOWER_LOOT_CONFIG,
     MAX_RETRIES,
     RETRY_DELAY
 )
@@ -73,22 +68,21 @@ def process_single_gamerpower_feed(config: Dict) -> List[Dict[str, Any]]:
                     image_elements = tree.xpath(config['image_xpath'])
                     if image_elements:
                         image_url = get_absolute_url(image_elements[0], config['base_url'])
+
+                # Generate unique hash for the item
+                item_hash = f"{hash(full_url + entry.get('title', ''))}"[:7]
                 
-                if 'published' in entry:
-                    pub_date = parsedate_to_datetime(entry.published)
-                else:
-                    pub_date = datetime.now(pytz.UTC)
-                    
+                # Determine feed type based on URL
+                feed_type = 'DLC' if '/dlc/' in full_url.lower() else 'Videogame'
+                
                 result = {
                     'title': entry.get('title', 'Untitled'),
                     'description': entry.get('description', '')[:500] + '...',
                     'link': full_url,
-                    'pubDate': pub_date
+                    'image_url': image_url,
+                    'item_hash': item_hash,
+                    'feed_type': feed_type
                 }
-                
-                # Add image URL if found
-                if image_url:
-                    result['image_url'] = image_url
                 
                 results.append(result)
                 logging.info(f"Found matching content using XPath for {url}")
@@ -99,43 +93,3 @@ def process_single_gamerpower_feed(config: Dict) -> List[Dict[str, Any]]:
             logging.error(f"Error processing {url}: {e}")
 
     return results
-
-def create_gamerpower_feed(results: List[Dict[str, Any]], config: Dict, filename: str) -> str:
-    """Create RSS feed from GamerPower results, merging with existing items."""
-    # Get existing items from the file
-    existing_items = parse_existing_xml(filename)
-    
-    # Create new items from results
-    new_items = []
-    for result in results:
-        item_kwargs = {
-            'title': result['title'],
-            'link': result['link'],
-            'description': result['description'],
-            'pubDate': result['pubDate']
-        }
-        
-        # Add image enclosure if available
-        if 'image_url' in result:
-            item_kwargs['enclosure'] = Enclosure(
-                url=result['image_url'],
-                length='0',  # Length is required but not critical for images
-                type='image/jpeg'  # Default to JPEG, could be made more specific if needed
-            )
-        
-        new_items.append(Item(**item_kwargs))
-    
-    # Combine new and existing items, removing duplicates
-    all_items = new_items + existing_items
-    unique_items = {item.link: item for item in all_items}.values()
-
-    feed = Feed(
-        title=config['title'],
-        link=config['link'],
-        description=config['description'],
-        language="en-US",
-        lastBuildDate=datetime.now(pytz.UTC),
-        items=list(unique_items)
-    )
-
-    return feed.rss()
