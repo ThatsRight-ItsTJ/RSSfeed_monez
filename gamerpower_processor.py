@@ -1,21 +1,16 @@
-import feedparser
-import requests
-from lxml import html
 import logging
 import time
 from typing import List, Dict, Any
 import urllib.parse
 from datetime import datetime
 import pytz
+import requests
+from lxml import html
 from utils import get_headers
-from config import (
-    MAX_RETRIES,
-    RETRY_DELAY
-)
 
 def fetch_url_with_retry(url: str) -> requests.Response:
     """Fetch URL with retry mechanism."""
-    for attempt in range(MAX_RETRIES):
+    for attempt in range(3):  # MAX_RETRIES = 3
         try:
             headers = get_headers()
             response = requests.get(url, headers=headers, timeout=10)
@@ -23,8 +18,8 @@ def fetch_url_with_retry(url: str) -> requests.Response:
             return response
         except requests.RequestException as e:
             logging.warning(f"Attempt {attempt + 1} failed for {url}: {e}")
-            if attempt < MAX_RETRIES - 1:
-                time.sleep(RETRY_DELAY)
+            if attempt < 2:  # MAX_RETRIES - 1
+                time.sleep(5)  # RETRY_DELAY = 5
             else:
                 raise
     return requests.Response()
@@ -44,6 +39,9 @@ def process_single_gamerpower_feed(config: Dict) -> List[Dict[str, Any]]:
     if not feed.entries:
         logging.warning(f"No entries found in the GamerPower RSS feed: {config['rss_url']}")
         return results
+
+    # Determine feed type based on config
+    feed_type = 'DLC' if 'loot' in config['rss_url'].lower() else 'Videogame'
 
     for entry in feed.entries[:config['max_entries']]:
         url = entry.get('link')
@@ -71,9 +69,6 @@ def process_single_gamerpower_feed(config: Dict) -> List[Dict[str, Any]]:
 
                 # Generate unique hash for the item
                 item_hash = f"{hash(full_url + entry.get('title', ''))}"[:7]
-                
-                # Determine feed type based on URL
-                feed_type = 'DLC' if '/dlc/' in full_url.lower() else 'Videogame'
                 
                 result = {
                     'title': entry.get('title', 'Untitled'),

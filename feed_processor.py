@@ -4,11 +4,9 @@ from lxml import html
 from typing import List, Dict, Optional
 from datetime import datetime
 import pytz
-from rfeed import Item, Feed, Enclosure
-import logging
 import urllib.parse
 import hashlib
-from email.utils import parsedate_to_datetime
+import logging
 from db_manager import DBManager
 from utils import make_request, get_headers
 
@@ -25,7 +23,7 @@ def determine_item_class(result: Dict) -> str:
     if 'itch.io' in source_url:
         return 'itchio_game'
     elif 'gamerpower.com' in source_url:
-        if '/dlc/' in link:
+        if 'loot' in source_url.lower():
             return 'DLC'
         return 'Videogame'
     elif 'classcentral.com' in source_url:
@@ -35,18 +33,39 @@ def determine_item_class(result: Dict) -> str:
     
     return 'unknown'
 
+def clean_image_url(url: str) -> str:
+    """Clean and validate image URL."""
+    if not url:
+        return None
+    
+    # Remove any "/h" suffix
+    if url.endswith('/h'):
+        url = url[:-2]
+    
+    # Ensure Udemy image URLs have the correct format
+    if 'udemycdn.com' in url:
+        # Extract the course ID and image name from the URL
+        parts = url.split('/')
+        if len(parts) >= 2:
+            course_id = parts[-2]
+            image_name = parts[-1]
+            return f"https://img-c.udemycdn.com/course/750x422/{course_id}_{image_name}"
+    
+    return url
+
 async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Optional[List[Dict]]:
     """Process a single feed configuration and store items in database."""
     try:
         feed = feedparser.parse(feed_config['rss_url'])
         results = []
         
-        with requests.Session() as session:
-            for entry in feed.entries[:feed_config['max_entries']]:
-                try:
-                    source_url = feed_config['link']
-                    
-                    if 'xpath' in feed_config:
+        for entry in feed.entries[:feed_config['max_entries']]:
+            try:
+                source_url = feed_config['link']
+                
+                # For feeds that need XPath processing
+                if 'xpath' in feed_config:
+                    with requests.Session() as session:
                         content = make_request(entry.link, session)
                         if not content:
                             continue
@@ -62,40 +81,49 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                             if 'image_xpath' in feed_config:
                                 image_elements = tree.xpath(feed_config['image_xpath'])
                                 if image_elements:
-                                    image_url = get_absolute_url(image_elements[0], entry.link)
-                            
-                            # Convert the published date to a datetime object
-                            if hasattr(entry, 'published'):
-                                pub_date = parsedate_to_datetime(entry.published)
-                            else:
-                                pub_date = datetime.now(pytz.UTC)
-                            
-                            # Generate hash for the item
-                            item_hash = generate_item_hash(entry.title, url)
+                                    raw_image_url = image_elements[0]
+                                    image_url = clean_image_url(raw_image_url)
                             
                             # Create result dictionary
                             result = {
                                 'title': entry.title,
                                 'link': url,
                                 'description': entry.get('description', '')[:500] + '...',
-                                'pub_date': pub_date,
+                                'pub_date': datetime.now(pytz.UTC),
                                 'source_url': source_url,
-                                'item_hash': item_hash
+                                'item_hash': generate_item_hash(entry.title, url)
                             }
                             
                             if image_url:
                                 result['image_url'] = image_url
-                            
-                            # Determine feed type
-                            result['feed_type'] = determine_item_class(result)
-                            
-                            # Store in database
-                            await db_manager.add_feed_item(result)
-                            results.append(result)
-                            
-                except Exception as e:
-                    logging.error(f"Error processing entry {entry.link}: {str(e)}")
-                    continue
+                else:
+                    # Direct RSS feed processing (e.g., for Itch.io)
+                    result = {
+                        'title': entry.title,
+                        'link': entry.link,
+                        'description': entry.get('description', '')[:500] + '...',
+                        'pub_date': datetime.now(pytz.UTC),
+                        'source_url': source_url,
+                        'item_hash': generate_item_hash(entry.title, entry.link)
+                    }
+                    
+                    # Extract image from enclosures if available
+                    if hasattr(entry, 'enclosures') and entry.enclosures:
+                        for enclosure in entry.enclosures:
+                            if enclosure.get('type', '').startswith('image/'):
+                                result['image_url'] = enclosure.href
+                                break
+                
+                # Determine feed type
+                result['feed_type'] = determine_item_class(result)
+                
+                # Store in database
+                await db_manager.add_feed_item(result)
+                results.append(result)
+                
+            except Exception as e:
+                logging.error(f"Error processing entry {entry.link}: {str(e)}")
+                continue
                     
         return results
     except Exception as e:
@@ -107,34 +135,3 @@ def get_absolute_url(url: str, base_url: str) -> str:
     if url.startswith(('http://', 'https://')):
         return url
     return urllib.parse.urljoin(base_url, url)
-
-def parse_existing_xml(filename: str) -> List[Item]:
-    """Parse existing XML feed and return items."""
-    try:
-        with open(filename, 'r', encoding='utf-8') as f:
-            feed = feedparser.parse(f.read())
-            items = []
-            for entry in feed.entries:
-                item_kwargs = {
-                    'title': entry.title,
-                    'link': entry.link,
-                    'description': entry.description,
-                    'pubDate': parsedate_to_datetime(entry.published)
-                }
-                
-                if hasattr(entry, 'enclosures') and entry.enclosures:
-                    enclosure = entry.enclosures[0]
-                    if 'url' in enclosure:
-                        item_kwargs['enclosure'] = Enclosure(
-                            url=enclosure.url,
-                            length=enclosure.get('length', '0'),
-                            type=enclosure.get('type', 'image/jpeg')
-                        )
-                
-                items.append(Item(**item_kwargs))
-            return items
-    except FileNotFoundError:
-        return []
-    except Exception as e:
-        logging.error(f"Error parsing existing XML: {str(e)}")
-        return []
