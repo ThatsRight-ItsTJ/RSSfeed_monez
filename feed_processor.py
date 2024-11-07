@@ -20,12 +20,13 @@ def generate_item_hash(title: str, link: str) -> str:
 def determine_item_class(result: Dict) -> str:
     """Determine the class of the feed item based on its source."""
     source_url = result.get('source_url', '').lower()
+    link = result.get('link', '').lower()
     
     if 'itch.io' in source_url:
         return 'itchio_game'
-    elif 'gamerpower.com' in source_url and '/dlc/' in result.get('link', '').lower():
-        return 'DLC'
     elif 'gamerpower.com' in source_url:
+        if '/dlc/' in link:
+            return 'DLC'
         return 'Videogame'
     elif 'classcentral.com' in source_url:
         return 'Ivy_League_Course'
@@ -72,21 +73,21 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                             # Generate hash for the item
                             item_hash = generate_item_hash(entry.title, url)
                             
-                            # Determine item class
-                            feed_type = determine_item_class({'source_url': source_url, 'link': url})
-                            
+                            # Create result dictionary
                             result = {
                                 'title': entry.title,
                                 'link': url,
                                 'description': entry.get('description', '')[:500] + '...',
                                 'pub_date': pub_date,
                                 'source_url': source_url,
-                                'item_hash': item_hash,
-                                'feed_type': feed_type
+                                'item_hash': item_hash
                             }
                             
                             if image_url:
                                 result['image_url'] = image_url
+                            
+                            # Determine feed type
+                            result['feed_type'] = determine_item_class(result)
                             
                             # Store in database
                             await db_manager.add_feed_item(result)
