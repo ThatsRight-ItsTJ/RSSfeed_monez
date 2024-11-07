@@ -27,7 +27,7 @@ def determine_item_class(result: Dict) -> str:
         return 'Videogame'
     elif 'classcentral.com' in source_url:
         return 'Ivy_League_Course'
-    elif any(domain in source_url for domain in ['real.discount', 'scrollcoupons.com', 'onlinecourses.ooo', 'udemyfreebies.com', 'infognu.com', 'jucktion.com']):
+    elif any(domain in source_url for domain in ['real.discount', 'scrollcoupons.com', 'onlinecourses.ooo', 'infognu.com', 'jucktion.com']):
         return 'Udemy_Course'
     
     return 'unknown'

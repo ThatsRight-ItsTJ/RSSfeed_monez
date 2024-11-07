@@ -85,7 +85,7 @@ FEEDS: List[Dict] = [
         'image_xpath': "substring-before(/html/body/main/div[4]/div/div[1]/img/@srcset,'480w')",
         'title': "Extracted scrollcoupons Udemy Courses",
         'description': "A feed of 100% Off Udemy Courses from scrollcoupons",
-        'link': "https://www.scrollcoupons.com/",
+        'link': "https://scrollcoupons.com/",
         'max_entries': 5
     },
     {
@@ -95,24 +95,6 @@ FEEDS: List[Dict] = [
         'title': "Extracted onlinecourses.ooo Udemy Courses",
         'description': "A feed of 100% Off Udemy Courses from onlinecourses.ooo",
         'link': "https://onlinecourses.ooo/",
-        'max_entries': 5
-    },
-    {
-        'rss_url': "https://politepol.com/fd/WjDGnyuwpgJo.xml",
-        'xpath': "/html/body/div[1]/div/div/div[1]/div/div/div[3]/div/a/@href",
-        'image_xpath': "concat('https://img-c.udemycdn.com/course/240x135/',substring-after(substring-after(//div[@class='theme-img']/img/@src,'/'),'/'))",
-        'title': "Extracted udemyfreebies.com Udemy Courses",
-        'description': "A feed of 100% Off Udemy Courses from udemyfreebies.com",
-        'link': "https://udemyfreebies.com/",
-        'max_entries': 5
-    },
-    {
-        'rss_url': "https://politepol.com/fd/k54boRNn7Kxi.xml",
-        'xpath': "//*[@id='enroll']/a/@href",
-        'image_xpath': "concat('https://img-c.udemycdn.com/course/480x270/',(substring-after(substring-after(/html/body/div/div[2]/div/div[2]/div[1]/div/img/@src,'/'),'/')))",
-        'title': "Extracted infognu.com Udemy Courses",
-        'description': "A feed of 100% Off Udemy Courses from infognu.com",
-        'link': "https://infognu.com/",
         'max_entries': 5
     },
     {
