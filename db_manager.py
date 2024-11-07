@@ -2,7 +2,8 @@ import asyncio
 from libsql_client import create_client
 import os
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
+import pytz
 from typing import Dict, List, Optional
 
 class DBManager:
@@ -16,25 +17,12 @@ class DBManager:
     async def close(self):
         await self.client.close()
 
-    async def cleanup_old_entries(self) -> None:
-        """Delete entries older than 7 days."""
-        try:
-            seven_days_ago = (datetime.now() - timedelta(days=7)).isoformat()
-            query = "DELETE FROM feeds WHERE created_at < ?"
-            await self.client.execute(query, [seven_days_ago])
-            logging.info("Cleaned up entries older than 7 days")
-        except Exception as e:
-            logging.error(f"Error cleaning up old entries: {e}")
-
     def generate_ad_copy(self, feed_type: str, title: str) -> str:
         """Generate ad copy using template."""
         return f"🔥 FREE {feed_type} ALERT! 🔥 Get instant access to our premium {title} without spending a single penny - available completely FREE for a limited time only! Don't miss this incredible opportunity to unlock your {feed_type} at zero cost - claim your copy of {title} right now while it's still FREE!"
 
     async def add_feed_item(self, item: Dict) -> bool:
         try:
-            # Run cleanup before adding new items
-            await self.cleanup_old_entries()
-            
             # Generate ad copy from template
             ad_copy = self.generate_ad_copy(item.get('feed_type', 'content'), item['title'])
             
