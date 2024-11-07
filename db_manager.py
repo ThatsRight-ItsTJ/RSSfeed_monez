@@ -23,20 +23,26 @@ class DBManager:
 
     async def add_feed_item(self, item: Dict) -> bool:
         try:
+            # First check if title already exists
+            result = await self.client.execute(
+                "SELECT id FROM feeds WHERE title = ?",
+                [item['title']]
+            )
+            
+            if result.rows:
+                logging.info(f"Skipping duplicate item: {item['title']}")
+                return False
+            
             # Generate ad copy from template
             ad_copy = self.generate_ad_copy(item.get('feed_type', 'content'), item['title'])
             
+            # Insert new item
             query = """
                 INSERT INTO feeds (
                     feed_type, title, link, description, 
                     pub_date, item_hash, image_url, source_url,
                     adcopy
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(item_hash) DO UPDATE SET
-                    title=excluded.title,
-                    description=excluded.description,
-                    image_url=excluded.image_url,
-                    adcopy=excluded.adcopy
             """
             
             await self.client.execute(query, [
@@ -51,7 +57,7 @@ class DBManager:
                 ad_copy
             ])
             
-            logging.info(f"Added/Updated item: {item['title']} ({item['item_hash']})")
+            logging.info(f"Added new item: {item['title']} ({item['item_hash']})")
             return True
         except Exception as e:
             logging.error(f"Error adding feed item: {e}")

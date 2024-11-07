@@ -10,27 +10,24 @@ async def init_db():
     )
 
     try:
-        # Create feeds table with automatic cleanup and new columns
+        # Drop existing table if it exists
+        await client.execute("DROP TABLE IF EXISTS feeds")
+        
+        # Create feeds table with title as unique constraint
         await client.execute("""
             CREATE TABLE IF NOT EXISTS feeds (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 feed_type TEXT NOT NULL,
-                title TEXT NOT NULL,
+                title TEXT NOT NULL UNIQUE,
                 link TEXT NOT NULL,
                 description TEXT,
                 pub_date TEXT NOT NULL,
-                item_hash TEXT NOT NULL UNIQUE,
+                item_hash TEXT NOT NULL,
                 image_url TEXT,
                 source_url TEXT,
                 adcopy TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
-        """)
-
-        # Create index on created_at for efficient cleanup
-        await client.execute("""
-            CREATE INDEX IF NOT EXISTS idx_feeds_created_at 
-            ON feeds(created_at)
         """)
 
         logging.info("Database initialized successfully")

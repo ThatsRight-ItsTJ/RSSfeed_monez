@@ -21,9 +21,12 @@ async def process_gamerpower_feed(config: dict, db_manager: DBManager) -> None:
         results = process_single_gamerpower_feed(config)
         if results:
             for result in results:
-                # Add source URL and current time
+                # Add source URL, current time, and feed config
                 result['source_url'] = config['base_url']
                 result['pub_date'] = datetime.now(pytz.UTC)
+                result['feed_config'] = config  # Add feed config for type determination
+                # Force feed type based on config
+                result['feed_type'] = 'DLC' if 'loot' in config['rss_url'].lower() else 'Videogame'
                 await db_manager.add_feed_item(result)
     except Exception as e:
         logging.error(f"Error processing GamerPower feed: {str(e)}")

@@ -41,9 +41,6 @@ def process_single_gamerpower_feed(config: Dict) -> List[Dict[str, Any]]:
         logging.warning(f"No entries found in the GamerPower RSS feed: {config['rss_url']}")
         return results
 
-    # Determine feed type based on config
-    feed_type = 'DLC' if 'loot' in config['rss_url'].lower() else 'Videogame'
-
     for entry in feed.entries[:config['max_entries']]:
         url = entry.get('link')
         if not url:
@@ -76,8 +73,7 @@ def process_single_gamerpower_feed(config: Dict) -> List[Dict[str, Any]]:
                     'description': entry.get('description', '')[:500] + '...',
                     'link': full_url,
                     'image_url': image_url,
-                    'item_hash': item_hash,
-                    'feed_type': feed_type
+                    'item_hash': item_hash
                 }
                 
                 results.append(result)
