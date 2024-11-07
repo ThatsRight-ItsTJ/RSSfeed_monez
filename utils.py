@@ -1,8 +1,10 @@
 import random
 import logging
 import time
-from typing import Dict, Optional
+from typing import Dict, List, Optional
 from datetime import datetime, timedelta
+import feedparser
+import gzip
 
 # Rate limiting settings
 REQUEST_DELAY = 1.0  # Minimum delay between requests to same domain
