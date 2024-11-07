@@ -14,7 +14,7 @@ jobs:
     
     env:
       TURSO_DATABASE_URL: libsql://main-goodoffers-db-offren.turso.io
-      TURSO_AUTH_TOKEN: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3MzAxNzAzNTgsImlkIjoiYjVhNGY5ZDUtNzlhNi00OTk1LWJhYzItZTVmYzQ3ZTZhOWM0In0.hkE1wPt4NnTJUbodfdNjD9rvrAB6EnvNAHVHIv3TKJyjl8SdY_VH--L1dYakQ2xbI1korLiFAhQiVji37teDCA
+      TURSO_AUTH_TOKEN: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3MzA5NTczNTMsImlkIjoiNGQ2NGM0YjEtZTVmZi00ZmI3LTliNGItNTA1NGQzMTU4NGZlIn0.0IGFhDh_Ht3WZWcfQMNTMuqCuIZWQTbX3i00_CQfOVE1poej5IQnPDBzPTsFYvthBJqRASX7SU1wbPEY3BNkCA
     
     steps:
       - uses: actions/checkout@v4
