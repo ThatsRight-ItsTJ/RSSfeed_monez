@@ -9,6 +9,7 @@ import hashlib
 import logging
 from db_manager import DBManager
 from utils import make_request, get_headers
+from config import GAMERPOWER_LOOT_CONFIG
 
 def generate_item_hash(title: str, link: str) -> str:
     """Generate a unique hash for each feed item based on title and link."""
@@ -16,16 +17,20 @@ def generate_item_hash(title: str, link: str) -> str:
     return hashlib.sha256(content).hexdigest()[:7]
 
 def determine_item_class(result: Dict) -> str:
-    """Determine the class of the feed item based on its source."""
+    """Determine the class of the feed item based on its source and feed config."""
     source_url = result.get('source_url', '').lower()
+    feed_config = result.get('feed_config', {})
     
-    if 'itch.io' in source_url:
-        return 'itchio_game'
-    elif 'gamerpower.com' in source_url:
-        # Check if this is from the loot feed config
-        if 'loot' in result.get('feed_config', {}).get('rss_url', '').lower():
+    # Check if this is from GamerPower
+    if 'gamerpower.com' in source_url:
+        # Check if this is from the loot feed config by comparing RSS URLs
+        if feed_config and feed_config.get('rss_url') == GAMERPOWER_LOOT_CONFIG['rss_url']:
             return 'DLC'
         return 'Videogame'
+    
+    # Handle other sources
+    if 'itch.io' in source_url:
+        return 'itchio_game'
     elif 'classcentral.com' in source_url:
         return 'Ivy_League_Course'
     elif any(domain in source_url for domain in ['real.discount', 'scrollcoupons.com', 'onlinecourses.ooo', 'infognu.com', 'jucktion.com']):
