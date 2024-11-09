@@ -2,7 +2,7 @@ import asyncio
 from libsql_client import create_client
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 import pytz
 from typing import Dict, List, Optional
 
@@ -23,29 +23,36 @@ class DBManager:
 
     async def add_feed_item(self, item: Dict) -> bool:
         try:
-            # First check if title already exists
-            result = await self.client.execute(
-                "SELECT id FROM feeds WHERE title = ?",
-                [item['title']]
-            )
+            current_time = datetime.now(pytz.UTC)
+            recent_window = (current_time - timedelta(hours=24)).isoformat()
             
+            # Check for recent duplicates
+            result = await self.client.execute("""
+                SELECT id, last_seen_at FROM feeds 
+                WHERE item_hash = ? AND last_seen_at > ?
+                LIMIT 1
+            """, [item['item_hash'], recent_window])
+
             if result.rows:
-                logging.info(f"Skipping duplicate item: {item['title']}")
-                return False
-            
-            # Generate ad copy from template
+                # Update last_seen_at for recent items
+                await self.client.execute("""
+                    UPDATE feeds 
+                    SET last_seen_at = ? 
+                    WHERE id = ?
+                """, [current_time.isoformat(), result.rows[0][0]])
+                return True
+
+            # Generate ad copy
             ad_copy = self.generate_ad_copy(item.get('feed_type', 'content'), item['title'])
             
             # Insert new item
-            query = """
+            await self.client.execute("""
                 INSERT INTO feeds (
                     feed_type, title, link, description, 
                     pub_date, item_hash, image_url, source_url,
-                    adcopy
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """
-            
-            await self.client.execute(query, [
+                    adcopy, first_seen_at, last_seen_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [
                 item.get('feed_type', 'unknown'),
                 item['title'],
                 item['link'],
@@ -54,7 +61,9 @@ class DBManager:
                 item['item_hash'],
                 item.get('image_url'),
                 item.get('source_url'),
-                ad_copy
+                ad_copy,
+                current_time.isoformat(),
+                current_time.isoformat()
             ])
             
             logging.info(f"Added new item: {item['title']} ({item['item_hash']})")
@@ -66,10 +75,10 @@ class DBManager:
     async def get_feed_items(self, feed_type: Optional[str] = None, limit: int = 100) -> List[Dict]:
         try:
             if feed_type:
-                query = "SELECT * FROM feeds WHERE feed_type = ? ORDER BY pub_date DESC LIMIT ?"
+                query = "SELECT * FROM feeds WHERE feed_type = ? ORDER BY last_seen_at DESC LIMIT ?"
                 result = await self.client.execute(query, [feed_type, limit])
             else:
-                query = "SELECT * FROM feeds ORDER BY pub_date DESC LIMIT ?"
+                query = "SELECT * FROM feeds ORDER BY last_seen_at DESC LIMIT ?"
                 result = await self.client.execute(query, [limit])
 
             return [dict(zip(result.columns, row)) for row in result.rows]
@@ -80,7 +89,7 @@ class DBManager:
     async def get_item_by_hash(self, item_hash: str) -> Optional[Dict]:
         try:
             result = await self.client.execute(
-                "SELECT * FROM feeds WHERE item_hash = ? LIMIT 1",
+                "SELECT * FROM feeds WHERE item_hash = ? ORDER BY last_seen_at DESC LIMIT 1",
                 [item_hash]
             )
             if result.rows:

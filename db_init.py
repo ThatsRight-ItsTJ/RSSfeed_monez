@@ -2,6 +2,7 @@ import asyncio
 from libsql_client import create_client
 import os
 import logging
+from datetime import datetime, timedelta
 
 async def init_db():
     client = create_client(
@@ -10,15 +11,12 @@ async def init_db():
     )
 
     try:
-        # Drop existing table if it exists
-        await client.execute("DROP TABLE IF EXISTS feeds")
-        
-        # Create feeds table with title as unique constraint
+        # Create feeds table with history tracking
         await client.execute("""
             CREATE TABLE IF NOT EXISTS feeds (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 feed_type TEXT NOT NULL,
-                title TEXT NOT NULL UNIQUE,
+                title TEXT NOT NULL,
                 link TEXT NOT NULL,
                 description TEXT,
                 pub_date TEXT NOT NULL,
@@ -26,8 +24,21 @@ async def init_db():
                 image_url TEXT,
                 source_url TEXT,
                 adcopy TEXT,
+                first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
+        """)
+
+        # Create indexes for better performance
+        await client.execute("""
+            CREATE INDEX IF NOT EXISTS idx_feeds_hash 
+            ON feeds(item_hash)
+        """)
+
+        await client.execute("""
+            CREATE INDEX IF NOT EXISTS idx_feeds_dates 
+            ON feeds(first_seen_at, last_seen_at)
         """)
 
         logging.info("Database initialized successfully")
