@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timedelta
 import pytz
 from typing import Dict, List, Optional, Any, Union
-from libsql_client import ResultSet, Result
+from libsql_client import ResultSet
 
 class DBManager:
     def __init__(self):
@@ -30,7 +30,7 @@ class DBManager:
                     await asyncio.sleep(self.retry_delay * (attempt + 1))
         return self.client
 
-    async def execute_with_retry(self, query: str, params: Optional[List[Any]] = None) -> Union[ResultSet, Result]:
+    async def execute_with_retry(self, query: str, params: Optional[List[Any]] = None) -> ResultSet:
         """Execute database query with retry logic."""
         for attempt in range(self.max_retries):
             try:
