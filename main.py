@@ -8,6 +8,11 @@ from config import (
     IVY_LEAGUE_CONFIG,
     FEEDS
 )
+
+# Set environment variables
+os.environ["TURSO_DATABASE_URL"] = "libsql://main-goodoffers-db-offren.turso.io"
+os.environ["TURSO_AUTH_TOKEN"] = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3MzExMjg1MzYsImlkIjoiNzgwNDY1YjktNzc5Yi00YjNhLTgwYzUtZWVlN2Q5NzUxNWI3In0.v7X1lyPpxDOUk123E3EHjTBJ8_LBtFvwOkVylqz9edu2dQjznSe87oBFtRSrNk1PD6OCpmNoiBP31NnGY4HEDA"
+
 from feed_processor import process_feed_with_db
 from gamerpower_processor import process_single_gamerpower_feed
 from db_manager import DBManager

@@ -23,8 +23,10 @@ def determine_item_class(result: Dict) -> str:
     
     # Check if this is from GamerPower
     if 'gamerpower.com' in source_url:
-        # Check if this is from the loot feed config by comparing RSS URLs
-        if feed_config and feed_config.get('rss_url') == GAMERPOWER_LOOT_CONFIG['rss_url']:
+        # Check if this is from the loot feed config by comparing the entire config
+        if feed_config and feed_config.get('rss_url') == GAMERPOWER_LOOT_CONFIG['rss_url'] and \
+           feed_config.get('base_url') == GAMERPOWER_LOOT_CONFIG['base_url'] and \
+           feed_config.get('title') == GAMERPOWER_LOOT_CONFIG['title']:
             return 'DLC'
         return 'Videogame'
     
