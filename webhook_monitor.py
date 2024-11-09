@@ -6,18 +6,30 @@ from datetime import datetime
 import pytz
 import aiohttp
 from typing import Dict, List, Optional
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 class WebhookMonitor:
     def __init__(self):
         self.client = None
         self.max_retries = 3
         self.retry_delay = 1
+        
+        # Verify all required environment variables are present
+        required_vars = ['WEBHOOK_IVY_LEAGUE', 'WEBHOOK_UDEMY', 'WEBHOOK_ITCHIO', 
+                        'WEBHOOK_VIDEOGAME', 'WEBHOOK_DLC']
+        missing_vars = [var for var in required_vars if not os.getenv(var)]
+        if missing_vars:
+            raise EnvironmentError(f"Missing required environment variables: {', '.join(missing_vars)}")
+            
         self.webhooks = {
-            'Ivy_League_Course': os.environ['WEBHOOK_IVY_LEAGUE'],
-            'Udemy_Course': os.environ['WEBHOOK_UDEMY'],
-            'itchio_game': os.environ['WEBHOOK_ITCHIO'],
-            'Videogame': os.environ['WEBHOOK_VIDEOGAME'],
-            'DLC': os.environ['WEBHOOK_DLC']
+            'Ivy_League_Course': os.getenv('WEBHOOK_IVY_LEAGUE'),
+            'Udemy_Course': os.getenv('WEBHOOK_UDEMY'),
+            'itchio_game': os.getenv('WEBHOOK_ITCHIO'),
+            'Videogame': os.getenv('WEBHOOK_VIDEOGAME'),
+            'DLC': os.getenv('WEBHOOK_DLC')
         }
         self.base_url = "https://www.goodoffers.theworkpc.com/?hash="
 
@@ -27,8 +39,8 @@ class WebhookMonitor:
             for attempt in range(self.max_retries):
                 try:
                     self.client = create_client(
-                        url=os.environ["TURSO_DATABASE_URL"],
-                        auth_token=os.environ["TURSO_AUTH_TOKEN"]
+                        url=os.getenv("TURSO_DATABASE_URL"),
+                        auth_token=os.getenv("TURSO_AUTH_TOKEN")
                     )
                     return self.client
                 except Exception as e:
@@ -152,8 +164,13 @@ async def main():
         format='%(asctime)s - %(levelname)s - %(message)s'
     )
 
-    monitor = WebhookMonitor()
-    await monitor.monitor()
+    try:
+        monitor = WebhookMonitor()
+        await monitor.monitor()
+    except EnvironmentError as e:
+        logging.error(str(e))
+    except Exception as e:
+        logging.error(f"Unexpected error: {str(e)}")
 
 if __name__ == "__main__":
     asyncio.run(main())
