@@ -4,49 +4,82 @@ import os
 import logging
 from datetime import datetime, timedelta
 
-async def init_db():
-    client = create_client(
-        url=os.environ["TURSO_DATABASE_URL"],
-        auth_token=os.environ["TURSO_AUTH_TOKEN"]
-    )
+class DBInitializer:
+    def __init__(self):
+        self.max_retries = 3
+        self.retry_delay = 1
+        self.client = None
 
-    try:
-        # Create feeds table with history tracking
-        await client.execute("""
-            CREATE TABLE IF NOT EXISTS feeds (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                feed_type TEXT NOT NULL,
-                title TEXT NOT NULL,
-                link TEXT NOT NULL,
-                description TEXT,
-                pub_date TEXT NOT NULL,
-                item_hash TEXT NOT NULL,
-                image_url TEXT,
-                source_url TEXT,
-                adcopy TEXT,
-                first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+    async def get_client(self):
+        """Get database client with connection retry logic."""
+        if not self.client:
+            for attempt in range(self.max_retries):
+                try:
+                    self.client = create_client(
+                        url=os.environ["TURSO_DATABASE_URL"],
+                        auth_token=os.environ["TURSO_AUTH_TOKEN"]
+                    )
+                    return self.client
+                except Exception as e:
+                    if attempt == self.max_retries - 1:
+                        raise
+                    await asyncio.sleep(self.retry_delay * (attempt + 1))
+        return self.client
 
-        # Create indexes for better performance
-        await client.execute("""
-            CREATE INDEX IF NOT EXISTS idx_feeds_hash 
-            ON feeds(item_hash)
-        """)
+    async def execute_with_retry(self, query: str):
+        """Execute database query with retry logic."""
+        for attempt in range(self.max_retries):
+            try:
+                client = await self.get_client()
+                return await client.execute(query)
+            except Exception as e:
+                if "WEBSOCKET" in str(e).upper():
+                    self.client = None  # Reset client on WebSocket error
+                if attempt == self.max_retries - 1:
+                    raise
+                await asyncio.sleep(self.retry_delay * (attempt + 1))
 
-        await client.execute("""
-            CREATE INDEX IF NOT EXISTS idx_feeds_dates 
-            ON feeds(first_seen_at, last_seen_at)
-        """)
+    async def init_db(self):
+        """Initialize database with retry logic."""
+        try:
+            # Create feeds table with history tracking
+            await self.execute_with_retry("""
+                CREATE TABLE IF NOT EXISTS feeds (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    feed_type TEXT NOT NULL,
+                    title TEXT NOT NULL,
+                    link TEXT NOT NULL,
+                    description TEXT,
+                    pub_date TEXT NOT NULL,
+                    item_hash TEXT NOT NULL,
+                    image_url TEXT,
+                    source_url TEXT,
+                    adcopy TEXT,
+                    first_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    last_seen_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
 
-        logging.info("Database initialized successfully")
-    except Exception as e:
-        logging.error(f"Error initializing database: {e}")
-    finally:
-        await client.close()
+            # Create indexes for better performance
+            await self.execute_with_retry("""
+                CREATE INDEX IF NOT EXISTS idx_feeds_hash 
+                ON feeds(item_hash)
+            """)
+
+            await self.execute_with_retry("""
+                CREATE INDEX IF NOT EXISTS idx_feeds_dates 
+                ON feeds(first_seen_at, last_seen_at)
+            """)
+
+            logging.info("Database initialized successfully")
+        except Exception as e:
+            logging.error(f"Error initializing database: {e}")
+        finally:
+            if self.client:
+                await self.client.close()
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
-    asyncio.run(init_db())
+    initializer = DBInitializer()
+    asyncio.run(initializer.init_db())
