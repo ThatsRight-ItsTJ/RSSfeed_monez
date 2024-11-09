@@ -1,0 +1,41 @@
+name: Monitor Database and Send Webhooks
+
+on:
+  schedule:
+    - cron: '27 */4 * * *'  # Run every 4 hours and 27 minutes
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: read
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    
+    env:
+      TURSO_DATABASE_URL: libsql://main-goodoffers-db-offren.turso.io
+      TURSO_AUTH_TOKEN: eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3MzExMjg1MzYsImlkIjoiNzgwNDY1YjktNzc5Yi00YjNhLTgwYzUtZWVlN2Q5NzUxNWI3In0.v7X1lyPpxDOUk123E3EHjTBJ8_LBtFvwOkVylqz9edu2dQjznSe87oBFtRSrNk1PD6OCpmNoiBP31NnGY4HEDA
+      WEBHOOK_IVY_LEAGUE: https://discord.com/api/webhooks/1304708511317622786/gc5uM49NudjQGHkSu2hk0Y_UXvcSXB4ZosYdaTA_ugAVgU0rv7aHfuToqwYCFTgdJsje
+      WEBHOOK_UDEMY: https://discord.com/api/webhooks/1304718332909457408/CthhNc2q_NW-a-zQtcNTyLfTJ5J8UtJSmxPa32lPg3Z6AJsShnZ03O3clXqwXv225bL2
+      WEBHOOK_ITCHIO: https://discord.com/api/webhooks/1304726424309076009/AAcL9kuVBcM8qbjejcNwRXzoRl2EqsJOXla1xg_f-4N8FGGIeKre_F49DbV8DEPMe5xw
+      WEBHOOK_VIDEOGAME: https://discord.com/api/webhooks/1304724737896742924/0p7QihYXxJlEfE9zlKXoaJ8o5TItBrvusj0K7-6nzCGfwc2vXKuRsOe3RTXXlFpE0lz5
+      WEBHOOK_DLC: https://discord.com/api/webhooks/1304727425061621821/FdwRe2IxpDzK-w6jwlBWoPWlkMgBJT0-KwYKhwmhxG8E1SZnYAsWemmRhvmto7sXMW7n
+    
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run webhook notifications
+        run: python webhook_monitor.py

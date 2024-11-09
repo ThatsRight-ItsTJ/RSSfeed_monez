@@ -1,9 +1,9 @@
 name: Cleanup Database Duplicates
 
 on:
-  schedule:
-    - cron: '0 */3 * * *'  # Run every 3 hours
-  workflow_dispatch:  # Allow manual trigger
+    schedule:
+      - cron: '16 */3 * * *'  # Run every 3 hours and 16 minutes
+    workflow_dispatch:  # Allow manual trigger
 
 permissions:
   contents: read
