@@ -9,7 +9,7 @@ import hashlib
 import logging
 from db_manager import DBManager
 from utils import make_request, get_headers
-from config import GAMERPOWER_LOOT_CONFIG
+from config import GAMERPOWER_LOOT_CONFIG, GAMERPOWER_GAMES_CONFIG
 
 def generate_item_hash(title: str, link: str) -> str:
     """Generate a unique hash for each feed item based on title and link."""
@@ -23,12 +23,22 @@ def determine_item_class(result: Dict) -> str:
     
     # Check if this is from GamerPower
     if 'gamerpower.com' in source_url:
-        # Check if this is from the loot feed config by comparing the entire config
-        if feed_config and feed_config.get('rss_url') == GAMERPOWER_LOOT_CONFIG['rss_url'] and \
-           feed_config.get('base_url') == GAMERPOWER_LOOT_CONFIG['base_url'] and \
-           feed_config.get('title') == GAMERPOWER_LOOT_CONFIG['title']:
+        # Log the comparison details
+        logging.info(f"Checking GamerPower feed type for {result['title']}")
+        logging.info(f"Feed config: {feed_config}")
+        logging.info(f"LOOT config: {GAMERPOWER_LOOT_CONFIG}")
+        logging.info(f"GAMES config: {GAMERPOWER_GAMES_CONFIG}")
+        
+        # Compare RSS URLs instead of entire configs
+        if feed_config.get('rss_url') == GAMERPOWER_LOOT_CONFIG['rss_url']:
+            logging.info("Matched LOOT config")
             return 'DLC'
-        return 'Videogame'
+        elif feed_config.get('rss_url') == GAMERPOWER_GAMES_CONFIG['rss_url']:
+            logging.info("Matched GAMES config")
+            return 'Videogame'
+        
+        logging.warning(f"No config match found, defaulting to Videogame")
+        return 'Videogame'  # Default to Videogame if config not recognized
     
     # Handle other sources
     if 'itch.io' in source_url:
@@ -40,26 +50,6 @@ def determine_item_class(result: Dict) -> str:
     
     return 'unknown'
 
-def clean_image_url(url: str) -> Optional[str]:
-    """Clean and validate image URL."""
-    if not url:
-        return None
-    
-    # Remove any "/h" suffix
-    if url.endswith('/h'):
-        url = url[:-2]
-    
-    # Ensure Udemy image URLs have the correct format
-    if 'udemycdn.com' in url:
-        # Extract the course ID and image name from the URL
-        parts = url.split('/')
-        if len(parts) >= 2:
-            course_id = parts[-2]
-            image_name = parts[-1]
-            return f"https://img-c.udemycdn.com/course/750x422/{course_id}_{image_name}"
-    
-    return url
-
 async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Optional[List[Dict]]:
     """Process a single feed configuration and store items in database."""
     try:
@@ -68,7 +58,7 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
         
         for entry in feed.entries[:feed_config['max_entries']]:
             try:
-                source_url = feed_config['link']
+                source_url = feed_config['base_url']
                 result = None  # Initialize result as None
                 
                 # Create base result dictionary with common fields
@@ -77,7 +67,10 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                     'description': entry.get('description', '')[:500] + '...',
                     'pub_date': datetime.now(pytz.UTC),
                     'source_url': source_url,
-                    'feed_config': feed_config  # Add feed config for type determination
+                    'feed_config': {
+                        'rss_url': feed_config['rss_url'],
+                        'base_url': feed_config['base_url']
+                    }  # Only pass necessary config fields
                 }
 
                 # For feeds that need XPath processing
@@ -128,6 +121,7 @@ async def process_feed_with_db(feed_config: Dict, db_manager: DBManager) -> Opti
                 if result:
                     # Determine feed type
                     result['feed_type'] = determine_item_class(result)
+                    logging.info(f"Determined feed type {result['feed_type']} for {result['title']}")
                     
                     # Store in database
                     await db_manager.add_feed_item(result)
@@ -147,3 +141,23 @@ def get_absolute_url(url: str, base_url: str) -> str:
     if url.startswith(('http://', 'https://')):
         return url
     return urllib.parse.urljoin(base_url, url)
+
+def clean_image_url(url: str) -> Optional[str]:
+    """Clean and validate image URL."""
+    if not url:
+        return None
+    
+    # Remove any "/h" suffix
+    if url.endswith('/h'):
+        url = url[:-2]
+    
+    # Ensure Udemy image URLs have the correct format
+    if 'udemycdn.com' in url:
+        # Extract the course ID and image name from the URL
+        parts = url.split('/')
+        if len(parts) >= 2:
+            course_id = parts[-2]
+            image_name = parts[-1]
+            return f"https://img-c.udemycdn.com/course/750x422/{course_id}_{image_name}"
+    
+    return url

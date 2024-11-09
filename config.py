@@ -38,11 +38,11 @@ GAMERPOWER_LOOT_CONFIG = {
     'rss_url': 'https://politepol.com/fd/KC5aCOn6Jefb.xml',
     'xpath': '/html/body/main/div/div[1]/div/section/article/div[1]/div[2]/a/@href',
     'image_xpath': '/html/body/main/div/div[1]/div/section/article/div[1]/div[1]/img/@src',
-    'base_url': 'https://www.gamerpower.com',
+    'base_url': 'https://www.gamerpower.com/loot',  # This is set correctly
     'max_entries': 10,
     'title': 'GamerPower Free Loot',
     'description': 'Latest free DLC and in-game items from GamerPower',
-    'link': 'https://www.gamerpower.com',
+    'link': 'https://www.gamerpower.com/loot',
     'filename': GAMERPOWER_LOOT_FILENAME
 }
 
@@ -77,6 +77,7 @@ FEEDS: List[Dict] = [
         'title': "Extracted real.discount Udemy Courses",
         'description': "A feed of 100% Off Udemy Courses from real.discount",
         'link': "https://www.real.discount/",
+        'base_url': "https://www.real.discount",
         'max_entries': 5
     },
     {
@@ -86,6 +87,7 @@ FEEDS: List[Dict] = [
         'title': "Extracted scrollcoupons Udemy Courses",
         'description': "A feed of 100% Off Udemy Courses from scrollcoupons",
         'link': "https://scrollcoupons.com/",
+        'base_url': "https://scrollcoupons.com",
         'max_entries': 5
     },
     {
@@ -95,6 +97,7 @@ FEEDS: List[Dict] = [
         'title': "Extracted onlinecourses.ooo Udemy Courses",
         'description': "A feed of 100% Off Udemy Courses from onlinecourses.ooo",
         'link': "https://onlinecourses.ooo/",
+        'base_url': "https://onlinecourses.ooo",
         'max_entries': 5
     },
     {
@@ -104,6 +107,7 @@ FEEDS: List[Dict] = [
         'title': "Extracted Jucktion Forum Udemy Courses",
         'description': "A feed of 100% Off Udemy Courses from jucktion.com",
         'link': "https://jucktion.com/",
+        'base_url': "https://jucktion.com",
         'max_entries': 5
     }
 ]

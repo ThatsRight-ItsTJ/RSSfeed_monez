@@ -8,6 +8,7 @@ import requests
 from lxml import html
 import feedparser
 from utils import get_headers
+from config import GAMERPOWER_LOOT_CONFIG, GAMERPOWER_GAMES_CONFIG
 
 def fetch_url_with_retry(url: str) -> requests.Response:
     """Fetch URL with retry mechanism."""
@@ -31,11 +32,32 @@ def get_absolute_url(url: str, base_url: str) -> str:
         return url
     return urllib.parse.urljoin(base_url, url)
 
+def determine_feed_type(config: Dict) -> str:
+    """Determine feed type based on config."""
+    logging.info(f"Determining GamerPower feed type")
+    logging.info(f"Config RSS URL: {config['rss_url']}")
+    logging.info(f"LOOT config RSS URL: {GAMERPOWER_LOOT_CONFIG['rss_url']}")
+    logging.info(f"GAMES config RSS URL: {GAMERPOWER_GAMES_CONFIG['rss_url']}")
+
+    if config['rss_url'] == GAMERPOWER_LOOT_CONFIG['rss_url']:
+        logging.info("Matched LOOT config - returning DLC")
+        return 'DLC'
+    elif config['rss_url'] == GAMERPOWER_GAMES_CONFIG['rss_url']:
+        logging.info("Matched GAMES config - returning Videogame")
+        return 'Videogame'
+    
+    logging.warning(f"No config match found, defaulting to Videogame")
+    return 'Videogame'
+
 def process_single_gamerpower_feed(config: Dict) -> List[Dict[str, Any]]:
     """Process a single GamerPower RSS feed and extract items."""
     results = []
     logging.info(f"Parsing GamerPower RSS feed: {config['rss_url']}")
     feed = feedparser.parse(config['rss_url'])
+
+    # Determine feed type once for all items in this feed
+    feed_type = determine_feed_type(config)
+    logging.info(f"Feed type determined as: {feed_type}")
 
     if not feed.entries:
         logging.warning(f"No entries found in the GamerPower RSS feed: {config['rss_url']}")
@@ -73,7 +95,13 @@ def process_single_gamerpower_feed(config: Dict) -> List[Dict[str, Any]]:
                     'description': entry.get('description', '')[:500] + '...',
                     'link': full_url,
                     'image_url': image_url,
-                    'item_hash': item_hash
+                    'item_hash': item_hash,
+                    'source_url': config['base_url'],
+                    'feed_config': {
+                        'rss_url': config['rss_url'],
+                        'base_url': config['base_url']
+                    },
+                    'feed_type': feed_type  # Set feed type directly here
                 }
                 
                 results.append(result)

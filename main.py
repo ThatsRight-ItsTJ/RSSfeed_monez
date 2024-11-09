@@ -8,11 +8,6 @@ from config import (
     IVY_LEAGUE_CONFIG,
     FEEDS
 )
-
-# Set environment variables
-os.environ["TURSO_DATABASE_URL"] = "libsql://main-goodoffers-db-offren.turso.io"
-os.environ["TURSO_AUTH_TOKEN"] = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3MzExMjg1MzYsImlkIjoiNzgwNDY1YjktNzc5Yi00YjNhLTgwYzUtZWVlN2Q5NzUxNWI3In0.v7X1lyPpxDOUk123E3EHjTBJ8_LBtFvwOkVylqz9edu2dQjznSe87oBFtRSrNk1PD6OCpmNoiBP31NnGY4HEDA"
-
 from feed_processor import process_feed_with_db
 from gamerpower_processor import process_single_gamerpower_feed
 from db_manager import DBManager
@@ -20,18 +15,19 @@ from utils import setup_logging
 from datetime import datetime
 import pytz
 
+# Set environment variables
+os.environ["TURSO_DATABASE_URL"] = "libsql://main-goodoffers-db-offren.turso.io"
+os.environ["TURSO_AUTH_TOKEN"] = "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3MzExMjg1MzYsImlkIjoiNzgwNDY1YjktNzc5Yi00YjNhLTgwYzUtZWVlN2Q5NzUxNWI3In0.v7X1lyPpxDOUk123E3EHjTBJ8_LBtFvwOkVylqz9edu2dQjznSe87oBFtRSrNk1PD6OCpmNoiBP31NnGY4HEDA"
+
 async def process_gamerpower_feed(config: dict, db_manager: DBManager) -> None:
     """Process GamerPower feed and store items in database."""
     try:
         results = process_single_gamerpower_feed(config)
         if results:
             for result in results:
-                # Add source URL, current time, and feed config
-                result['source_url'] = config['base_url']
+                # Add source URL and current time
                 result['pub_date'] = datetime.now(pytz.UTC)
-                result['feed_config'] = config  # Add feed config for type determination
-                # Force feed type based on config
-                result['feed_type'] = 'DLC' if 'loot' in config['rss_url'].lower() else 'Videogame'
+                result['feed_config'] = config
                 await db_manager.add_feed_item(result)
     except Exception as e:
         logging.error(f"Error processing GamerPower feed: {str(e)}")
