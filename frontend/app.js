@@ -1,21 +1,21 @@
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const hash = urlParams.get('hash');
+    const itemHash = urlParams.get('hash');
     
-    if (hash) {
-        searchByHash(hash);
+    if (itemHash) {
+        searchByHash(itemHash);
     }
     
     document.getElementById('contentLockerBackground').style.display = 'block';
     document.getElementById('contentLocker').style.display = 'block';
 });
 
-async function searchByHash(hash) {
+async function searchByHash(itemHash) {
     const contentDisplay = document.getElementById('contentInfo');
     const toolTitle = document.getElementById('tool-title');
     
     try {
-        const response = await fetch(`/.netlify/functions/search?hash=${encodeURIComponent(hash)}`, {
+        const response = await fetch(`/.netlify/functions/search?item_hash=${encodeURIComponent(itemHash)}`, {
             headers: {
                 'X-API-Key': import.meta.env.VITE_OFFERS_API_KEY
             }

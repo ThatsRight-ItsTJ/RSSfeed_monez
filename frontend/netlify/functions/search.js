@@ -24,9 +24,9 @@ export async function handler(event) {
   }
 
   try {
-    const { hash } = event.queryStringParameters;
+    const { item_hash } = event.queryStringParameters;
     
-    if (!hash) {
+    if (!item_hash) {
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Hash parameter is required' })
@@ -35,7 +35,7 @@ export async function handler(event) {
 
     const result = await client.execute({
       sql: 'SELECT title, link, description, image_url, feed_type FROM feeds WHERE item_hash = ?',
-      args: [hash]
+      args: [item_hash]
     });
 
     if (result.rows.length === 0) {
