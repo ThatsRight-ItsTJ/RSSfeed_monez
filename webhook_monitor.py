@@ -31,7 +31,7 @@ class WebhookMonitor:
             'Videogame': os.getenv('WEBHOOK_VIDEOGAME'),
             'DLC': os.getenv('WEBHOOK_DLC')
         }
-        self.base_url = "https://www.goodoffers.theworkpc.com/?hash="
+        self.base_url = "https://www.goodoffers.theworkpc.com/?item_hash="
 
     async def get_client(self):
         """Get database client with connection retry logic."""

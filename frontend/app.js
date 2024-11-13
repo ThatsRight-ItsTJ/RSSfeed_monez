@@ -1,6 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
-    const itemHash = urlParams.get('hash');
+    const itemHash = urlParams.get('item_hash');
     
     if (itemHash) {
         searchByHash(itemHash);

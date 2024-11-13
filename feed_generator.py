@@ -55,8 +55,8 @@ def create_redirect_feed(original_feed: str, feed_title: str) -> str:
                 item_class = determine_item_class({'source_url': entry.link})
                 item_hash = generate_item_hash()
 
-            # Create redirect URL
-            redirect_url = f"https://www.goodoffers.theworkpc.com/?class={item_class}&hash={item_hash}"
+            # Create redirect URL with item_hash parameter
+            redirect_url = f"https://www.goodoffers.theworkpc.com/?item_hash={item_hash}"
 
             # Create redirect item
             item_kwargs = {
@@ -166,7 +166,7 @@ def merge_all_feeds(scraped_filename: str, final_merge_filename: str) -> str:
             
         feed = Feed(
             title="Final Merged Feed",
-            link="https://example.com/final-feed",
+            link="https://www.goodoffers.theworkpc.com",
             description="Combined feed from multiple sources",
             language="en-US",
             lastBuildDate=datetime.now(pytz.UTC),
