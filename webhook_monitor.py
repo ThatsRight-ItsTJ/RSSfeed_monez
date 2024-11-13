@@ -62,28 +62,35 @@ class WebhookMonitor:
                     raise
                 await asyncio.sleep(self.retry_delay * (attempt + 1))
 
-    async def get_last_run_time(self) -> Optional[str]:
-        """Get the timestamp of the last run."""
-        try:
-            result = await self.execute_with_retry("""
-                SELECT last_run FROM webhook_monitor_log 
-                ORDER BY last_run DESC LIMIT 1
-            """)
-            if result.rows:
-                return result.rows[0][0]
-            return None
-        except Exception as e:
-            logging.error(f"Error getting last run time: {e}")
-            return None
+    async def create_webhook_log_table(self):
+        """Create webhook log table if it doesn't exist."""
+        await self.execute_with_retry("""
+            CREATE TABLE IF NOT EXISTS webhook_sent_log (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_hash TEXT NOT NULL,
+                feed_type TEXT NOT NULL,
+                sent_at TEXT NOT NULL,
+                UNIQUE(item_hash, feed_type)
+            )
+        """)
 
-    async def update_last_run_time(self, timestamp: str):
-        """Update the last run timestamp."""
+    async def is_item_sent(self, item_hash: str, feed_type: str) -> bool:
+        """Check if an item has already been sent to webhooks."""
+        result = await self.execute_with_retry("""
+            SELECT 1 FROM webhook_sent_log 
+            WHERE item_hash = ? AND feed_type = ?
+        """, [item_hash, feed_type])
+        return bool(result.rows)
+
+    async def mark_item_sent(self, item_hash: str, feed_type: str):
+        """Mark an item as sent to webhooks."""
         try:
             await self.execute_with_retry("""
-                INSERT INTO webhook_monitor_log (last_run) VALUES (?)
-            """, [timestamp])
+                INSERT INTO webhook_sent_log (item_hash, feed_type, sent_at)
+                VALUES (?, ?, ?)
+            """, [item_hash, feed_type, datetime.now(pytz.UTC).isoformat()])
         except Exception as e:
-            logging.error(f"Error updating last run time: {e}")
+            logging.error(f"Error marking item as sent: {e}")
 
     async def send_webhook(self, webhook_url: str, content: str):
         """Send message to webhook."""
@@ -94,34 +101,37 @@ class WebhookMonitor:
         except Exception as e:
             logging.error(f"Error sending webhook: {e}")
 
-    async def process_new_entries(self, last_run: Optional[str]):
+    async def process_new_entries(self):
         """Process new database entries and send webhook notifications."""
         try:
-            # Get new entries since last run
+            # Get all entries ordered by creation time
             query = """
                 SELECT feed_type, adcopy, item_hash 
                 FROM feeds 
-                WHERE created_at > ?
                 ORDER BY created_at ASC
             """
             
-            result = await self.execute_with_retry(
-                query, 
-                [last_run or '1970-01-01 00:00:00']
-            )
+            result = await self.execute_with_retry(query)
 
             if not result.rows:
-                logging.info("No new entries found")
+                logging.info("No entries found")
                 return
 
-            # Process each new entry
+            # Process each entry
             for row in result.rows:
                 feed_type, adcopy, item_hash = row
-                if feed_type in self.webhooks:
-                    webhook_url = self.webhooks[feed_type]
-                    content = f"{adcopy}\n{self.base_url}{item_hash}"
-                    await self.send_webhook(webhook_url, content)
-                    logging.info(f"Processed new {feed_type} entry: {item_hash}")
+                
+                # Skip if not a supported feed type or already sent
+                if feed_type not in self.webhooks or await self.is_item_sent(item_hash, feed_type):
+                    continue
+
+                webhook_url = self.webhooks[feed_type]
+                content = f"{adcopy}\n{self.base_url}{item_hash}"
+                
+                # Send webhook and mark as sent
+                await self.send_webhook(webhook_url, content)
+                await self.mark_item_sent(item_hash, feed_type)
+                logging.info(f"Processed new {feed_type} entry: {item_hash}")
 
         except Exception as e:
             logging.error(f"Error processing new entries: {e}")
@@ -129,28 +139,11 @@ class WebhookMonitor:
     async def monitor(self):
         """Main monitoring function."""
         try:
-            # Create log table if it doesn't exist
-            await self.execute_with_retry("""
-                CREATE TABLE IF NOT EXISTS webhook_monitor_log (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    last_run TEXT NOT NULL
-                )
-            """)
-
-            # Get last run time
-            last_run = await self.get_last_run_time()
-            if last_run:
-                logging.info(f"Last run: {last_run}")
-            else:
-                logging.info("First run - will process all entries")
+            # Ensure webhook log table exists
+            await self.create_webhook_log_table()
 
             # Process new entries
-            await self.process_new_entries(last_run)
-
-            # Update last run time
-            current_time = datetime.now(pytz.UTC).strftime('%Y-%m-%d %H:%M:%S')
-            await self.update_last_run_time(current_time)
-            logging.info(f"Updated last run time to: {current_time}")
+            await self.process_new_entries()
 
         except Exception as e:
             logging.error(f"Error during monitoring: {e}")
