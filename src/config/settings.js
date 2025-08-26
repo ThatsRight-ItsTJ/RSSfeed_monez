@@ -1,5 +1,20 @@
 require('dotenv').config();
 
+// Validate required environment variables
+const requiredEnvVars = [
+  'OUO_API_TOKEN',
+  'DISCORD_WEBHOOK_URL',
+  'TURSO_DATABASE_URL',
+  'TURSO_AUTH_TOKEN'
+];
+
+for (const envVar of requiredEnvVars) {
+  if (!process.env[envVar]) {
+    console.error(`❌ Missing required environment variable: ${envVar}`);
+    process.exit(1);
+  }
+}
+
 module.exports = {
   // ouo.io API Configuration
   ouo: {
@@ -40,7 +55,8 @@ module.exports = {
     logLevel: process.env.LOG_LEVEL || 'info',
     cacheTTL: parseInt(process.env.CACHE_TTL_HOURS) || 24,
     processingInterval: parseInt(process.env.PROCESSING_INTERVAL_MINUTES) || 15,
-    baseUrl: process.env.BASE_URL || 'https://www.goodoffers.theworkpc.com'
+    baseUrl: process.env.BASE_URL || 'http://localhost:3000',
+    webhookToken: process.env.RSS_PROCESSOR_TOKEN
   },
 
   // Feed Configuration

@@ -1,15 +1,17 @@
 {
   "name": "rss-feed-monetizer",
-  "version": "1.0.0",
-  "description": "RSS Feed Monetization & Discord Integration System",
+  "version": "2.0.0",
+  "description": "Advanced RSS Feed Generation & Monetization System with Database Support",
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "test-processing": "node -e \"require('./src/services/rssProcessor').processAllFeeds().then(console.log)\"",
     "test-monetization": "node -e \"require('./src/services/linkMonetizer').monetizeUrl('https://example.com').then(console.log)\"",
+    "test-generation": "node -e \"require('./src/services/advancedFeedGenerator').generateAllFeeds().then(console.log)\"",
     "cache-cleanup": "node -e \"require('./src/services/cacheManager').cleanup()\"",
-    "system-stats": "curl -s http://localhost:3000/stats | jq"
+    "system-stats": "curl -s http://localhost:3000/stats | jq",
+    "db-stats": "curl -s http://localhost:3000/database/stats | jq"
   },
   "dependencies": {
     "node-cron": "^3.0.3",
@@ -19,7 +21,11 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "helmet": "^7.1.0",
-    "rate-limiter-flexible": "^3.0.8"
+    "rate-limiter-flexible": "^2.4.2",
+    "@libsql/client": "^0.4.0",
+    "puppeteer": "^21.5.0",
+    "cheerio": "^1.0.0-rc.12",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
@@ -29,7 +35,12 @@
     "monetization",
     "discord",
     "feed",
-    "automation"
+    "automation",
+    "database",
+    "turso",
+    "gamerpower",
+    "udemy",
+    "itch.io"
   ],
   "author": "RSS Monetizer Team",
   "license": "MIT"
