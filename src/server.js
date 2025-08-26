@@ -6,6 +6,8 @@ const logger = require('./utils/logger');
 const rssProcessor = require('./services/rssProcessor');
 const discordWebhook = require('./services/discordWebhook');
 const cacheManager = require('./services/cacheManager');
+const advancedFeedGenerator = require('./services/advancedFeedGenerator');
+const databaseManager = require('./services/databaseManager');
 
 class RSSMonetizationServer {
   constructor() {
@@ -70,6 +72,40 @@ class RSSMonetizationServer {
     this.app.get('/cache/stats', (req, res) => {
       res.json(cacheManager.getStats());
     });
+
+    // Database endpoints
+    this.app.get('/database/stats', async (req, res) => {
+      try {
+        const stats = await databaseManager.getFeedItems();
+        const byType = {};
+        stats.forEach(item => {
+          byType[item.feed_type] = (byType[item.feed_type] || 0) + 1;
+        });
+        
+        res.json({
+          totalItems: stats.length,
+          itemsByType: byType,
+          lastUpdated: stats[0]?.created_at || null
+        });
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to get database stats' });
+      }
+    });
+
+    // Item lookup by hash
+    this.app.get('/item/:hash', async (req, res) => {
+      try {
+        const item = await databaseManager.getItemByHash(req.params.hash);
+        if (item) {
+          // Redirect to original link
+          res.redirect(item.link);
+        } else {
+          res.status(404).json({ error: 'Item not found' });
+        }
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to lookup item' });
+      }
+    });
   }
 
   setupScheduler() {
@@ -99,37 +135,64 @@ class RSSMonetizationServer {
   async processFeeds() {
     try {
       const startTime = Date.now();
-      logger.info('Starting RSS feed processing cycle');
+      logger.info('Starting RSS generation and processing cycle');
 
+      // Step 1: Generate fresh RSS feeds (this now handles database storage)
+      const generationResults = await advancedFeedGenerator.generateAllFeeds();
+      
+      // Step 2: Process and monetize the generated feeds  
       const processedFeeds = await rssProcessor.processAllFeeds();
       
+      // Step 3: Send updates to Discord
       if (processedFeeds.length > 0) {
-        logger.info(`Processing completed, sending ${processedFeeds.length} updates to Discord`);
+        logger.info(`Sending ${processedFeeds.length} updates to Discord`);
         await discordWebhook.sendBulkUpdate(processedFeeds);
-      } else {
-        logger.info('No feed updates found');
       }
 
       const duration = Date.now() - startTime;
-      logger.info(`RSS processing cycle completed in ${duration}ms`, {
-        processedFeeds: processedFeeds.length,
+      logger.info(`Complete cycle finished in ${duration}ms`, {
+        newItems: generationResults.totalNewItems,
+        processed: processedFeeds.length,
         duration
       });
 
       return {
-        processedFeeds: processedFeeds.length,
+        newItems: generationResults.totalNewItems,
+        processed: processedFeeds.length,
         duration,
         timestamp: new Date().toISOString()
       };
 
     } catch (error) {
-      logger.error('Error in feed processing cycle', { 
+      logger.error('Error in complete processing cycle', { 
         error: error.message,
         stack: error.stack 
       });
       throw error;
     }
-  }
+  }</to_replace>
+</Editor.edit_file_by_replace>
+
+<Editor.edit_file_by_replace>
+<file_name>src/server.js</file_name>
+<to_replace>    // Weekly system status report
+    cron.schedule('0 9 * * 1', async () => {
+      logger.info('Sending weekly system status');
+      const stats = await this.getSystemStats();
+      await discordWebhook.sendSystemStatus(stats);
+    });</to_replace>
+<new_content>    // Weekly system status report
+    cron.schedule('0 9 * * 1', async () => {
+      logger.info('Sending weekly system status');
+      const stats = await this.getSystemStats();
+      await discordWebhook.sendSystemStatus(stats);
+    });
+
+    // Daily database cleanup
+    cron.schedule('0 3 * * *', async () => {
+      logger.info('Starting database cleanup');
+      await databaseManager.cleanup();
+    });
 
   async getSystemStats() {
     const cacheStats = cacheManager.getStats();
