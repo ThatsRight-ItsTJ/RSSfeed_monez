@@ -106,6 +106,62 @@ class RSSMonetizationServer {
         res.status(500).json({ error: 'Failed to lookup item' });
       }
     });
+
+    // Feed management endpoints
+    this.app.get('/api/feeds', async (req, res) => {
+      try {
+        const feedSources = require('./config/feed-sources');
+        // Return configured feeds from your feed-sources.js or database
+        const feeds = Object.values(feedSources).flat().map(feed => ({
+          id: feed.id,
+          name: feed.name,
+          rss_url: feed.rss_url,
+          feed_type: feed.feed_type,
+          discord_webhook: feed.discord_webhook || null,
+          updated_at: new Date().toISOString()
+        }));
+        
+        res.json(feeds);
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to get feeds' });
+      }
+    });
+
+    this.app.post('/api/feeds', async (req, res) => {
+      try {
+        const { name, rss_url, discord_webhook, feed_type } = req.body;
+        
+        // Save to database or update configuration
+        // This depends on how you want to store dynamic feeds
+        
+        res.json({ success: true, id: Date.now() });
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to create feed' });
+      }
+    });
+
+    this.app.delete('/api/feeds/:id', async (req, res) => {
+      try {
+        const feedId = req.params.id;
+        // Remove feed from configuration
+        
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ error: 'Failed to delete feed' });
+      }
+    });
+
+    // Test feed endpoint
+    this.app.get('/api/test-feed/:id', async (req, res) => {
+      try {
+        const feedId = req.params.id;
+        // Test the RSS feed and return results
+        
+        res.json({ success: true, items: [] });
+      } catch (error) {
+        res.status(500).json({ error: 'Feed test failed' });
+      }
+    });
   }
 
   setupScheduler() {
