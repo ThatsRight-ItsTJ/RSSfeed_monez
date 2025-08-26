@@ -1,0 +1,36 @@
+{
+  "name": "rss-feed-monetizer",
+  "version": "1.0.0",
+  "description": "RSS Feed Monetization & Discord Integration System",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "test-processing": "node -e \"require('./src/services/rssProcessor').processAllFeeds().then(console.log)\"",
+    "test-monetization": "node -e \"require('./src/services/linkMonetizer').monetizeUrl('https://example.com').then(console.log)\"",
+    "cache-cleanup": "node -e \"require('./src/services/cacheManager').cleanup()\"",
+    "system-stats": "curl -s http://localhost:3000/stats | jq"
+  },
+  "dependencies": {
+    "node-cron": "^3.0.3",
+    "axios": "^1.6.0",
+    "xml2js": "^0.6.2",
+    "rss-parser": "^3.13.0",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.2",
+    "helmet": "^7.1.0",
+    "rate-limiter-flexible": "^3.0.8"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.2"
+  },
+  "keywords": [
+    "rss",
+    "monetization",
+    "discord",
+    "feed",
+    "automation"
+  ],
+  "author": "RSS Monetizer Team",
+  "license": "MIT"
+}
