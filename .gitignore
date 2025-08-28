@@ -5,11 +5,13 @@
 .env.development
 
 # Logs
-logs/
+logs/*.log
+logs/*.txt
 *.log
 
 # Cache
-cache/
+cache/*.json
+cache/*.tmp
 node_modules/
 
 # Railway/Deployment configs with secrets
