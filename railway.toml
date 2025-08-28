@@ -1,0 +1,39 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[[services]]
+name = "rss-feed-monetizer"
+
+[services.source]
+repo = "ThatsRight-ItsTJ/RSSfeed_monez"
+rootDirectory = "/"
+
+[services.build]
+buildCommand = "npm install"
+
+[services.deploy]
+startCommand = "npm start"
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[services.variables]
+NODE_ENV = "production"
+PORT = { $default = 3000 }
+
+[services.healthcheck]
+path = "/health"
+interval = 30000
+timeout = 10000
+retries = 3
+startPeriod = 30000
+
+[services.resources]
+replicas = 1

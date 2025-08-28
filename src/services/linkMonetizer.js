@@ -6,7 +6,6 @@ const rateLimiter = require('../utils/rateLimiter');
 
 class LinkMonetizer {
   constructor() {
-    this.apiUrl = config.ouo.apiUrl;
     this.apiToken = config.ouo.apiToken;
   }
 
@@ -25,24 +24,31 @@ class LinkMonetizer {
       return originalUrl;
     }
 
-    try {
-      const response = await axios.post(this.apiUrl, 
-        `token=${this.apiToken}&url=${encodeURIComponent(originalUrl)}`,
-        {
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          timeout: 10000
-        }
-      );
+    // Check if we have a valid API token
+    if (!this.apiToken || this.apiToken === 'your_ouo_api_token_here') {
+      logger.warn('ouo.io API token not configured, using original URL', { originalUrl });
+      return originalUrl;
+    }
 
-      if (response.data && response.data.status === 'success') {
-        const monetizedUrl = response.data.shortenedUrl;
+    try {
+      // Use the correct ouo.io API format: http://ouo.io/api/<ouo_token>?s=<yourdestinationlink.com>
+      const apiUrl = `http://ouo.io/api/${this.apiToken}?s=${encodeURIComponent(originalUrl)}`;
+      
+      const response = await axios.get(apiUrl, {
+        timeout: 10000,
+        headers: {
+          'User-Agent': 'RSS-Feed-Monetizer/2.0'
+        }
+      });
+
+      // The ouo.io API returns the shortened URL directly as text
+      if (response.data && typeof response.data === 'string' && response.data.startsWith('http')) {
+        const monetizedUrl = response.data.trim();
         cacheManager.set(originalUrl, monetizedUrl);
         logger.info('Successfully monetized URL', { originalUrl, monetizedUrl });
         return monetizedUrl;
       } else {
-        logger.warn('ouo.io API returned error', { 
+        logger.warn('ouo.io API returned unexpected response', { 
           originalUrl, 
           response: response.data 
         });
